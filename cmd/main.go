@@ -9,6 +9,7 @@ import (
 
     "github.com/JamesStewy/go-mysqldump"
     _ "github.com/go-sql-driver/mysql"
+    mega "github.com/t3rm1n4l/go-mega"
 )
 
 func main() {
@@ -45,7 +46,28 @@ func main() {
         fmt.Println("Error dumping:", err)
         return
     }
+
     infoLog.Println(fmt.Sprintf("File is saved to %s", resultFilename))
+
+    megaUser := os.Getenv("MEGA_USER")
+    megaPass := os.Getenv("MEGA_PASSWD")
+
+    m := mega.New()
+    err = m.Login(megaUser, megaPass)
+    if err != nil{
+        errorLog.Fatal("Error login to MEGA:", err)
+        return
+    }
+
+    infoLog.Println("Starting file upload")
+
+    _, err = m.UploadFile(resultFilename, m.FS.GetRoot(), "", nil)
+    if err != nil{
+        errorLog.Fatal("Error uploading backup file to MEGA:", err)
+        return
+    }
+
+    infoLog.Println("File uploaded successfully")
 }
 
 func openDB(dsn string) (*sql.DB, error) {

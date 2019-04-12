@@ -1,9 +1,12 @@
 package main
 
 import (
+    "bytes"
+    "compress/gzip"
     "database/sql"
     "flag"
     "fmt"
+    "io/ioutil"
     "log"
     "os"
 
@@ -49,6 +52,30 @@ func main() {
 
     infoLog.Println(fmt.Sprintf("File is saved to %s", resultFilename))
 
+    compressedFilename := fmt.Sprintf("%s.gz", resultFilename)
+
+    file, err := os.Open(resultFilename)
+    if err != nil {
+        fmt.Println("Error opening dump file:", err)
+    }
+    defer file.Close()
+
+    content, err := ioutil.ReadAll(file)
+    if err != nil {
+        fmt.Println("Error reading dump file:", err)
+    }
+
+    var b bytes.Buffer
+    w := gzip.NewWriter(&b)
+    w.Write([]byte(content))
+    w.Close() // You must close this first to flush the bytes to the buffer.
+    err = ioutil.WriteFile(compressedFilename, b.Bytes(), 0666)
+    if err != nil {
+        fmt.Println("Error compressing dump file:", err)
+    }
+
+    infoLog.Println(fmt.Sprintf("Compressing file"))
+
     megaUser := os.Getenv("MEGA_USER")
     megaPass := os.Getenv("MEGA_PASSWD")
 
@@ -61,7 +88,7 @@ func main() {
 
     infoLog.Println("Starting file upload")
 
-    _, err = m.UploadFile(resultFilename, m.FS.GetRoot(), "", nil)
+    _, err = m.UploadFile(compressedFilename, m.FS.GetRoot(), "", nil)
     if err != nil{
         errorLog.Fatal("Error uploading backup file to MEGA:", err)
         return
@@ -75,7 +102,13 @@ func main() {
         return
     }
 
-    infoLog.Println("Local file deleted")
+    err = os.Remove(compressedFilename)
+    if err != nil{
+        errorLog.Fatal("Error deleting local backup file:", err)
+        return
+    }
+
+    infoLog.Println("Local files deleted")
 }
 
 func openDB(dsn string) (*sql.DB, error) {

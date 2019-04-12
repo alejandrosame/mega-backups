@@ -68,6 +68,14 @@ func main() {
     }
 
     infoLog.Println("File uploaded successfully")
+    
+    err = os.Remove(resultFilename)
+    if err != nil{
+        errorLog.Fatal("Error deleting local backup file:", err)
+        return
+    }
+
+    infoLog.Println("Local file deleted")
 }
 
 func openDB(dsn string) (*sql.DB, error) {
